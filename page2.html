@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>第二頁</title>
+    <style>
+      body {
+        font-family: "Microsoft JhengHei", sans-serif;
+        text-align: center;
+        background-color: #fff3cd;
+        margin-top: 100px;
+      }
+      button {
+        background-color: #0078ff;
+        color: white;
+        font-size: 20px;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 20px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #005ec2;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>這是第二頁</h1>
+    <p>恭喜你成功跳轉！</p>
+    <button onclick="goBack()">回首頁</button>
+
+    <script>
+      function goBack() {
+        window.location.href = "index.html";
+      }
+    </script>
+  </body>
+</html>
