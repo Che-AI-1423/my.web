@@ -2,37 +2,60 @@
 <html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <title>首頁</title>
+    <title>登入頁面</title>
     <style>
       body {
         font-family: "Microsoft JhengHei", sans-serif;
         text-align: center;
         background-color: #f0f4f8;
-        margin-top: 100px;
+        margin-top: 120px;
+      }
+      input {
+        padding: 10px;
+        font-size: 18px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
       }
       button {
         background-color: #0078ff;
         color: white;
-        font-size: 20px;
+        font-size: 18px;
         border: none;
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 10px 20px;
+        margin-left: 10px;
         cursor: pointer;
       }
       button:hover {
         background-color: #005ec2;
       }
+      p {
+        color: red;
+        font-weight: bold;
+      }
     </style>
   </head>
 
   <body>
-    <h1>這是首頁</h1>
-    <p>點下面按鈕前往第二頁</p>
-    <button onclick="goToPage2()">前往第二頁</button>
+    <h1>請輸入密碼才能前往第二頁</h1>
+
+    <input type="password" id="password" placeholder="輸入密碼" />
+    <button onclick="checkPassword()">送出</button>
+
+    <p id="errorMsg"></p>
 
     <script>
-      function goToPage2() {
-        window.location.href = "page2.html"; // 跳轉到第二頁
+      function checkPassword() {
+        const input = document.getElementById("password").value;
+        const error = document.getElementById("errorMsg");
+
+        if (input === "123") {
+          // ✅ 密碼正確，跳轉到第二頁
+          window.location.href = "page2.html";
+        } else {
+          // ❌ 密碼錯誤
+          error.textContent = "密碼錯誤，請再試一次！";
+        }
       }
     </script>
   </body>
