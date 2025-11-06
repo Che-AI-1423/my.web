@@ -27,6 +27,7 @@
     }
     .btn:hover { filter:brightness(.95); }
     .btn.primary { background:var(--primary); }
+
     /* 內容區 */
     .container { flex:1; display:grid; place-items:center; padding:28px 16px; }
     .card {
@@ -45,9 +46,7 @@
     .actions { margin-top:8px; display:flex; gap:10px; }
     .msg { margin-top:10px; min-height:1.2em; color:#d11; }
     .msg.ok { color:#2a8f2a; }
-    .result {
-      margin-top:16px; background:#fafafa; border:1px dashed #ddd; border-radius:12px; padding:14px;
-    }
+    .result { margin-top:16px; }
     .kol-item { margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #eee; }
     .kol-item:last-child { border-bottom:none; }
   </style>
@@ -66,39 +65,39 @@
   <!-- 主要內容 -->
   <main class="container">
     <section class="card">
-      <h1>網紅查找</h1>
-      <p class="tip">平台固定 IG。輸入粉絲數與互動率（%）後查找。</p>
+      <h1>網紅查找（Cache + RPC）</h1>
+      <p class="tip">平台固定 IG。這個版本會先呼叫 <code>refresh_kol_search_cache</code>，再從 <code>kol_search_cache</code> 顯示結果。</p>
 
       <form id="searchForm">
-        <!-- 平台鎖定 IG -->
         <div class="field">
           <label>平台</label>
           <input type="text" value="IG" disabled />
         </div>
 
-        <!-- 網紅類型（預留，暫不過濾） -->
         <div class="field">
-          <label for="kolType">網紅類型</label>
-          <input id="kolType" type="text" placeholder="例：旅遊、開箱、搞笑…（此欄先無作用）" />
+          <label for="gender">性別</label>
+          <select id="gender">
+            <option value="">不限</option>
+            <option value="F">女</option>
+            <option value="M">男</option>
+          </select>
         </div>
 
-        <!-- 粉絲數（範圍） -->
         <div class="field">
           <label for="minFollowers">粉絲數（最少）</label>
           <input id="minFollowers" type="number" min="0" placeholder="0" />
         </div>
+
         <div class="field">
           <label for="maxFollowers">粉絲數（最多）</label>
           <input id="maxFollowers" type="number" min="0" placeholder="200000" />
         </div>
 
-        <!-- 互動率（%） -->
         <div class="field">
           <label for="minEr">互動率（最低 %）</label>
           <input id="minEr" type="number" min="0" step="0.01" placeholder="例如 2 或 3.5" />
         </div>
 
-        <!-- 人數（限制回傳筆數） -->
         <div class="field">
           <label for="limit">人數（上限）</label>
           <input id="limit" type="number" min="1" max="1000" value="10" />
@@ -111,7 +110,7 @@
       </form>
 
       <p id="msg" class="msg"></p>
-      <div id="result" class="result" style="display:none;"></div>
+      <div id="result" class="result"></div>
     </section>
   </main>
 
@@ -123,90 +122,75 @@
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const $ = (id) => document.getElementById(id);
-    const showMsg = (text, ok=false) => {
-      const el = $("msg");
-      el.textContent = text || "";
-      el.className = "msg" + (ok ? " ok" : "");
-    };
+    const showMsg = (text, ok=false) => { const el = $("msg"); el.textContent = text || ""; el.className = "msg" + (ok ? " ok" : ""); };
+    const toPct = (val) => (val == null ? null : (val <= 1 ? val * 100 : val)); // 0~1 → 乘100
 
-    // 進入頁面先檢查登入狀態，並顯示 Email
+    // 登入檢查
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = "index.html";
-        return;
-      }
+      if (!session) { window.location.href = "index.html"; return; }
       $("user").textContent = `已登入：${session.user.email}`;
     })();
 
     // 登出
-    $("logout").onclick = async () => {
-      await supabase.auth.signOut();
-      window.location.href = "index.html";
-    };
+    $("logout").onclick = async () => { await supabase.auth.signOut(); window.location.href = "index.html"; };
 
-    // 小工具：把 emg_rate 轉為百分比（資料可能是 0~1 或 0~100）
-    const toPercent = (val) => {
-      if (val == null) return null;
-      const num = Number(val);
-      if (Number.isNaN(num)) return null;
-      return num <= 1 ? num * 100 : num; // 0~1 → 乘 100；否則當成已是百分比
-    };
-
-    // 查找
+    // 查找（RPC → cache）
     $("searchForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      showMsg("搜尋中…"); $("result").style.display = "none";
+      $("result").innerHTML = "";
+      showMsg("搜尋中…");
 
-      const minFollowers = $("minFollowers").value ? Number($("minFollowers").value) : 0;
-      const maxFollowers = $("maxFollowers").value ? Number($("maxFollowers").value) : 999999999;
-      const minErPct = $("minEr").value ? Number($("minEr").value) : 0; // 使用者輸入的百分比
+      const min_followers = $("minFollowers").value ? Number($("minFollowers").value) : 0;
+      const max_followers = $("maxFollowers").value ? Number($("maxFollowers").value) : 999999999;
+      const min_emg_rate_pct = $("minEr").value ? Number($("minEr").value) : 0;    // 使用者輸入（百分比）
+      const min_emg_rate = min_emg_rate_pct / 100;                                  // RPC 參數：用 0~1
       const limit = $("limit").value ? Math.min(Math.max(Number($("limit").value),1),1000) : 10;
+      const gender = $("gender").value || ""; // 不限=空字串
 
-      if (minFollowers > maxFollowers) return showMsg("粉絲數區間不合理：最少不可大於最多");
+      // 1) 呼叫 RPC：refresh_kol_search_cache（預過濾）
+      const { data: rpcData, error: rpcErr } = await supabase.rpc("refresh_kol_search_cache", {
+        min_followers,
+        max_followers,
+        min_emg_rate,
+        p_gender: gender
+      });
 
-      // 先用粉絲數在 DB 端過濾，抓多一點回來，前端再依互動率過濾
+      if (rpcErr) { showMsg("RPC 失敗：" + rpcErr.message); return; }
+
+      // 2) 從 cache 取結果（只取需要欄位）
+      //    備註：這裡假設 kol_search_cache 已經是預過濾結果；我們只排序與限制筆數
       const { data, error } = await supabase
-        .from("kol_ig_db")
-        .select("ig_name, instagram, ig_followers, emg_rate")
-        .gte("ig_followers", minFollowers)
-        .lte("ig_followers", maxFollowers)
+        .from("kol_search_cache")
+        .select("ig_name, ig_followers, emg_rate")
         .order("ig_followers", { ascending: false })
-        .limit(limit * 5); // 多抓一些以免 ER 前端過濾後不足
+        .limit(limit);
 
-      if (error) return showMsg("查詢錯誤：" + error.message);
+      if (error) { showMsg("查詢 cache 失敗：" + error.message); return; }
+      if (!data || data.length === 0) { showMsg("查無符合條件的網紅。"); return; }
 
-      // 互動率轉百分比並過濾
-      let rows = (data || []).map(r => {
-        const erPct = toPercent(r.emg_rate);
-        return { ...r, _erPct: erPct };
-      }).filter(r => (r._erPct == null ? (minErPct === 0) : (r._erPct >= minErPct)));
-
-      // 重新限制人數
-      rows = rows.slice(0, limit);
-
-      if (!rows.length) return showMsg("查無符合條件的網紅。");
-
-      // 渲染
-      const html = rows.map((r, i) => `
-        <div class="kol-item">
-          <strong>${i + 1}. ${r.ig_name ?? "（未命名）"}</strong><br>
-          <a href="${r.instagram ?? "#"}" target="_blank" rel="noreferrer">${r.instagram ?? "-"}</a><br>
-          粉絲數：${r.ig_followers?.toLocaleString?.() ?? "未知"}　
-          互動率：${r._erPct != null ? (Math.round(r._erPct * 100) / 100) + "%" : "—"}
-        </div>
-      `).join("");
+      // 3) 渲染
+      const html = data.map((r, i) => {
+        const erPct = toPct(r.emg_rate);
+        return `
+          <div class="kol-item">
+            <strong>${i + 1}. ${r.ig_name ?? "（未命名）"}</strong><br>
+            粉絲數：${r.ig_followers?.toLocaleString?.() ?? "未知"}　
+            互動率：${erPct != null ? (Math.round(erPct * 100) / 100) + "%" : "—"}
+          </div>
+        `;
+      }).join("");
 
       $("result").innerHTML = html;
-      $("result").style.display = "block";
-      showMsg(`找到 ${rows.length} 位網紅`, true);
+      showMsg(`找到 ${data.length} 位網紅`, true);
     });
 
     // 清空
     $("resetBtn").onclick = () => {
-      ["kolType","minFollowers","maxFollowers","minEr"].forEach(id => $(id).value = "");
+      ["minFollowers","maxFollowers","minEr"].forEach(id => $(id).value = "");
       $("limit").value = 10;
-      $("result").style.display = "none";
+      $("gender").value = "";
+      $("result").innerHTML = "";
       showMsg("");
     };
   </script>
