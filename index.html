@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>登入範例 - Supabase</title>
   <style>
-    body { font-family: -apple-system, "Noto Sans TC", "Microsoft JhengHei", sans-serif; background:#f6f7fb; margin:0; display:grid; place-items:center; min-height:100vh; }
+    body { font-family: "Microsoft JhengHei", sans-serif; background:#f6f7fb; margin:0; display:grid; place-items:center; min-height:100vh; }
     .card { width:min(480px, 92vw); background:#fff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08); }
     h1 { margin:0 0 12px; font-size:24px; }
     label { display:block; margin-top:12px; font-weight:600; }
@@ -16,15 +16,13 @@
     .ghost { background:#eee; }
     .msg { margin-top:12px; color:#d11; min-height:1.2em; }
     .ok { color:#2a8f2a; }
-    .foot { margin-top:10px; font-size:13px; color:#666; }
   </style>
-  <!-- Supabase JS v2（官方 CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <main class="card">
-    <h1>登入範例（Email/Password）</h1>
-    <p class="foot">測試用：先註冊一組帳密，再用同一組帳密登入。</p>
+    <h1>登入範例（Email / Password）</h1>
+    <p>請輸入 Email 與密碼進行註冊或登入。</p>
 
     <label>Email
       <input id="email" type="email" placeholder="you@example.com" />
@@ -39,13 +37,11 @@
     </div>
 
     <p id="msg" class="msg"></p>
-    <div class="foot">登入成功會導向 <code>page2.html</code></div>
   </main>
 
   <script>
-    // TODO：把下面兩個值換成你專案的
-    const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
-    const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+    const SUPABASE_URL = "https://brszmjgodlmhsqkbcvmd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyc3ptamdvZGxtaHNxa2Jjdm1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjQ5NDAsImV4cCI6MjA2OTkwMDk0MH0.aIU16WE7MZdbJtPOb5qbPpizaufXaOtTnjgxcTqE-ik";
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -66,8 +62,7 @@
 
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return show("註冊失敗：" + error.message);
-      // 若你有關閉 Confirm email，這裡就直接成功；否則會寄驗證信
-      show("註冊成功，現在可以用這組帳密登入！", true);
+      show("註冊成功，請用相同帳密登入。", true);
     };
 
     $("btn-login").onclick = async () => {
@@ -81,7 +76,6 @@
       if (error) return show("登入失敗：" + error.message);
 
       show("登入成功，前往第二頁...", true);
-      // 導向受保護頁
       window.location.href = "page2.html";
     };
   </script>
