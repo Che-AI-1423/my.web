@@ -2,8 +2,44 @@
 <html>
   <head>
     <title>我的第一個網站</title>
+
+    <!-- 👇 這裡是 CSS -->
+    <style>
+      body {
+        background-color: #f2f2f2; /* 背景顏色 */
+        font-family: "Microsoft JhengHei", sans-serif; /* 字體 */
+        text-align: center; /* 文字置中 */
+        color: #333; /* 文字顏色 */
+      }
+
+      h1 {
+        color: #0078ff; /* 標題變藍色 */
+        font-size: 40px; /* 字體大小 */
+        margin-top: 50px; /* 上方空間 */
+      }
+
+      p {
+        font-size: 20px;
+      }
+
+      button {
+        background-color: #0078ff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #005ec2; /* 滑鼠移上去時變深色 */
+      }
+    </style>
   </head>
+
   <body>
     <h1>哈囉！這是我的第一個網站！</h1>
+    <p>我成功架設了自己的網站 😎</p>
+    <button onclick="alert('你好啊！')">打個招呼</button>
   </body>
 </html>
