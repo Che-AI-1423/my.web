@@ -1,62 +1,89 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <title>登入頁面</title>
-    <style>
-      body {
-        font-family: "Microsoft JhengHei", sans-serif;
-        text-align: center;
-        background-color: #f0f4f8;
-        margin-top: 120px;
-      }
-      input {
-        padding: 10px;
-        font-size: 18px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-      }
-      button {
-        background-color: #0078ff;
-        color: white;
-        font-size: 18px;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        margin-left: 10px;
-        cursor: pointer;
-      }
-      button:hover {
-        background-color: #005ec2;
-      }
-      p {
-        color: red;
-        font-weight: bold;
-      }
-    </style>
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>登入範例 - Supabase</title>
+  <style>
+    body { font-family: -apple-system, "Noto Sans TC", "Microsoft JhengHei", sans-serif; background:#f6f7fb; margin:0; display:grid; place-items:center; min-height:100vh; }
+    .card { width:min(480px, 92vw); background:#fff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08); }
+    h1 { margin:0 0 12px; font-size:24px; }
+    label { display:block; margin-top:12px; font-weight:600; }
+    input { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; margin-top:6px; font-size:16px; }
+    .row { display:flex; gap:8px; margin-top:16px; }
+    button { flex:1; padding:12px; border:0; border-radius:10px; cursor:pointer; font-weight:700; }
+    .primary { background:#2b6cff; color:#fff; }
+    .ghost { background:#eee; }
+    .msg { margin-top:12px; color:#d11; min-height:1.2em; }
+    .ok { color:#2a8f2a; }
+    .foot { margin-top:10px; font-size:13px; color:#666; }
+  </style>
+  <!-- Supabase JS v2（官方 CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <main class="card">
+    <h1>登入範例（Email/Password）</h1>
+    <p class="foot">測試用：先註冊一組帳密，再用同一組帳密登入。</p>
 
-  <body>
-    <h1>請輸入密碼才能前往第二頁</h1>
+    <label>Email
+      <input id="email" type="email" placeholder="you@example.com" />
+    </label>
+    <label>密碼
+      <input id="password" type="password" placeholder="至少 6 碼" />
+    </label>
 
-    <input type="password" id="password" placeholder="輸入密碼" />
-    <button onclick="checkPassword()">送出</button>
+    <div class="row">
+      <button class="ghost" id="btn-signup">註冊</button>
+      <button class="primary" id="btn-login">登入</button>
+    </div>
 
-    <p id="errorMsg"></p>
+    <p id="msg" class="msg"></p>
+    <div class="foot">登入成功會導向 <code>page2.html</code></div>
+  </main>
 
-    <script>
-      function checkPassword() {
-        const input = document.getElementById("password").value;
-        const error = document.getElementById("errorMsg");
+  <script>
+    // TODO：把下面兩個值換成你專案的
+    const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
+    const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
 
-        if (input === "123") {
-          // ✅ 密碼正確，跳轉到第二頁
-          window.location.href = "page2.html";
-        } else {
-          // ❌ 密碼錯誤
-          error.textContent = "密碼錯誤，請再試一次！";
-        }
-      }
-    </script>
-  </body>
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const $ = (id) => document.getElementById(id);
+    const show = (text, ok=false) => {
+      const el = $("msg");
+      el.textContent = text || "";
+      el.className = "msg" + (ok ? " ok" : "");
+    };
+
+    $("btn-signup").onclick = async () => {
+      show("");
+      const email = $("email").value.trim();
+      const password = $("password").value;
+
+      if (!email || !password) return show("請輸入 Email 與密碼");
+      if (password.length < 6) return show("密碼至少 6 碼");
+
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) return show("註冊失敗：" + error.message);
+      // 若你有關閉 Confirm email，這裡就直接成功；否則會寄驗證信
+      show("註冊成功，現在可以用這組帳密登入！", true);
+    };
+
+    $("btn-login").onclick = async () => {
+      show("");
+      const email = $("email").value.trim();
+      const password = $("password").value;
+
+      if (!email || !password) return show("請輸入 Email 與密碼");
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return show("登入失敗：" + error.message);
+
+      show("登入成功，前往第二頁...", true);
+      // 導向受保護頁
+      window.location.href = "page2.html";
+    };
+  </script>
+</body>
 </html>
