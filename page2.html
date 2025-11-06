@@ -1,33 +1,52 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <title>第二頁</title>
-    <style>
-      body {
-        font-family: "Microsoft JhengHei", sans-serif;
-        text-align: center;
-        background-color: #fff3cd;
-        margin-top: 100px;
-      }
-      button {
-        background-color: #0078ff;
-        color: white;
-        font-size: 20px;
-        border: none;
-        border-radius: 10px;
-        padding: 10px 20px;
-        cursor: pointer;
-      }
-      button:hover {
-        background-color: #005ec2;
-      }
-    </style>
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>會員專區</title>
+  <style>
+    body { font-family:-apple-system, "Noto Sans TC", "Microsoft JhengHei", sans-serif; background:#fff3cd; margin:0; display:grid; place-items:center; min-height:100vh; }
+    .card { width:min(560px, 92vw); background:#fff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08); text-align:center; }
+    button { padding:10px 16px; border:0; border-radius:10px; cursor:pointer; font-weight:700; background:#333; color:#fff; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <main class="card">
+    <h1>歡迎回來！</h1>
+    <p id="user"></p>
+    <button id="logout">登出</button>
+  </main>
 
-  <body>
-    <h1>這是第二頁 🎉</h1>
-    <p>你輸入了正確的密碼！</p>
-    <button onclick="window.location.href='index.html'">回首頁</button>
-  </body>
+  <script>
+    // 和 index.html 保持一致
+    const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
+    const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    (async () => {
+      // 1) 讀目前是否有登入中的 session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // 沒登入 → 回首頁
+        window.location.href = "index.html";
+        return;
+      }
+
+      // 2) 顯示登入者 Email
+      document.getElementById("user").textContent = `已登入帳號：${session.user.email}`;
+
+      // 3) 登出
+      document.getElementById("logout").onclick = async () => {
+        await supabase.auth.signOut();
+        window.location.href = "index.html";
+      };
+
+      // 4) 監聽登入狀態變化（可選）
+      supabase.auth.onAuthStateChange(async (event, sess) => {
+        if (!sess) window.location.href = "index.html";
+      });
+    })();
+  </script>
+</body>
 </html>
