@@ -3,45 +3,204 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>會員頁面</title>
+  <title>網紅查找</title>
   <style>
-    body { font-family:"Microsoft JhengHei", sans-serif; background:#fff3cd; margin:0; display:grid; place-items:center; min-height:100vh; }
-    .card { width:min(560px, 92vw); background:#fff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08); text-align:center; }
-    button { padding:10px 16px; border:0; border-radius:10px; cursor:pointer; font-weight:700; background:#333; color:#fff; }
+    :root {
+      --bg:#f6f7fb; --card:#fff; --text:#222; --muted:#666; --primary:#2b6cff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin:0; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+      "Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;
+      background:var(--bg); color:var(--text);
+      min-height:100vh; display:flex; flex-direction:column;
+    }
+    /* 頂部列 */
+    .topbar {
+      height:56px; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.06);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 16px; position:sticky; top:0; z-index:10;
+    }
+    .topbar .brand { font-weight:800; letter-spacing:.5px; }
+    .topbar .user { font-size:14px; color:var(--muted); margin-right:8px; }
+    .btn {
+      appearance:none; border:none; border-radius:10px; padding:10px 14px; cursor:pointer;
+      font-weight:700; background:#333; color:#fff;
+    }
+    .btn:hover { filter:brightness(.95); }
+    .btn.primary { background:var(--primary); }
+    /* 內容區 */
+    .container { flex:1; display:grid; place-items:center; padding:28px 16px; }
+    .card {
+      width:min(720px, 92vw); background:var(--card); border-radius:18px;
+      padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+    h1 { margin:0 0 8px; font-size:24px; }
+    p.tip { margin:0 0 18px; color:var(--muted); }
+    form { display:grid; gap:14px; grid-template-columns:1fr 1fr; }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-weight:700; }
+    input, select {
+      padding:10px 12px; border:1px solid #ddd; border-radius:10px; font-size:16px; background:#fff;
+    }
+    .row { display:flex; gap:10px; }
+    .actions { margin-top:8px; display:flex; gap:10px; }
+    .msg { margin-top:10px; min-height:1.2em; color:#d11; }
+    .ok { color:#2a8f2a; }
+    .result {
+      margin-top:16px; background:#fafafa; border:1px dashed #ddd; border-radius:12px; padding:14px;
+      font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; color:#444;
+      white-space:pre-wrap; word-break:break-word;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <main class="card">
-    <h1>歡迎回來！</h1>
-    <p id="user"></p>
-    <button id="logout">登出</button>
+  <!-- 頂部列 -->
+  <header class="topbar">
+    <div class="brand">KOL Finder</div>
+    <div class="row" style="align-items:center;">
+      <span id="user" class="user"></span>
+      <button id="logout" class="btn">登出</button>
+    </div>
+  </header>
+
+  <!-- 主要內容 -->
+  <main class="container">
+    <section class="card">
+      <h1>網紅查找</h1>
+      <p class="tip">先做最簡單版本：平台固定 IG，其餘條件可填可不填。按「查找」會先顯示查詢條件（稍後再接 Supabase）。</p>
+
+      <form id="searchForm">
+        <!-- 平台鎖定 IG -->
+        <div class="field">
+          <label>平台</label>
+          <input type="text" value="IG" disabled />
+          <input type="hidden" name="platform" value="IG" />
+        </div>
+
+        <!-- 網紅類型（自由輸入；之後可改成下拉/複選） -->
+        <div class="field">
+          <label for="kolType">網紅類型</label>
+          <input id="kolType" name="kolType" type="text" placeholder="例：旅遊、開箱、搞笑..." />
+        </div>
+
+        <!-- 粉絲數（範圍） -->
+        <div class="field">
+          <label for="minFollowers">粉絲數（最少）</label>
+          <input id="minFollowers" name="minFollowers" type="number" min="0" placeholder="0" />
+        </div>
+        <div class="field">
+          <label for="maxFollowers">粉絲數（最多）</label>
+          <input id="maxFollowers" name="maxFollowers" type="number" min="0" placeholder="200000" />
+        </div>
+
+        <!-- 互動率（%） -->
+        <div class="field">
+          <label for="minEr">互動率（最低 %）</label>
+          <input id="minEr" name="minEr" type="number" min="0" step="0.01" placeholder="例如 2 或 3.5" />
+        </div>
+
+        <!-- 人數（限制回傳筆數） -->
+        <div class="field">
+          <label for="limit">人數（上限）</label>
+          <input id="limit" name="limit" type="number" min="1" max="1000" value="20" />
+        </div>
+
+        <div class="field full actions">
+          <button type="button" id="resetBtn" class="btn">清空</button>
+          <button type="submit" class="btn primary">查找</button>
+        </div>
+      </form>
+
+      <p id="msg" class="msg"></p>
+      <div id="result" class="result" style="display:none;"></div>
+    </section>
   </main>
 
   <script>
+    // --- Supabase 初始化（與 index.html 一樣） ---
     const SUPABASE_URL = "https://brszmjgodlmhsqkbcvmd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyc3ptamdvZGxtaHNxa2Jjdm1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjQ5NDAsImV4cCI6MjA2OTkwMDk0MH0.aIU16WE7MZdbJtPOb5qbPpizaufXaOtTnjgxcTqE-ik";
-
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    const $ = (id) => document.getElementById(id);
+    const showMsg = (text, ok=false) => {
+      const el = $("msg");
+      el.textContent = text || "";
+      el.className = "msg" + (ok ? " ok" : "");
+    };
+    const showResult = (obj) => {
+      const box = $("result");
+      box.style.display = "block";
+      box.textContent = JSON.stringify(obj, null, 2);
+    };
+
+    // 1) 進入頁面先檢查登入狀態，並顯示 Email
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        // 未登入 → 回首頁
         window.location.href = "index.html";
         return;
       }
-
-      document.getElementById("user").textContent = `已登入帳號：${session.user.email}`;
-
-      document.getElementById("logout").onclick = async () => {
-        await supabase.auth.signOut();
-        window.location.href = "index.html";
-      };
-
-      supabase.auth.onAuthStateChange(async (event, sess) => {
-        if (!sess) window.location.href = "index.html";
-      });
+      $("user").textContent = `已登入：${session.user.email}`;
     })();
+
+    // 2) 登出（右上角）
+    $("logout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "index.html";
+    };
+
+    // 3) 表單：收集查詢條件（先不打 DB，先把條件組出來預覽）
+    $("searchForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showMsg(""); $("result").style.display = "none";
+
+      const platform = "IG"; // 鎖定
+      const kolType = $("kolType").value.trim() || null;
+
+      const minFollowers = $("minFollowers").value ? Number($("minFollowers").value) : null;
+      const maxFollowers = $("maxFollowers").value ? Number($("maxFollowers").value) : null;
+      const minEr = $("minEr").value ? Number($("minEr").value) : null;
+      const limit = $("limit").value ? Math.min(Math.max(Number($("limit").value),1),1000) : 20;
+
+      if (minFollowers != null && maxFollowers != null && minFollowers > maxFollowers) {
+        return showMsg("粉絲數區間不合理：最少不可大於最多");
+      }
+      if (minEr != null && (minEr < 0 || minEr > 100)) {
+        return showMsg("互動率請輸入 0–100 之間的數字（代表百分比）");
+      }
+
+      const query = { platform, kolType, minFollowers, maxFollowers, minErPercent: minEr, limit };
+      showResult({ filters_preview: query, note: "目前展示查詢條件。下一步我會把它接到 Supabase 查詢並顯示結果清單。" });
+
+      // ---（下一步：接 Supabase 範例）---
+      // 假設你有資料表 kol_ig_db，欄位有 ig_followers（數字）、a_emg_rate（平均互動率，百分比數值）等：
+      //
+      // let sql = supabase.from('kol_ig_db').select('kol_id, account, ig_name, ig_followers, a_emg_rate').limit(limit);
+      // if (minFollowers != null) sql = sql.gte('ig_followers', minFollowers);
+      // if (maxFollowers != null) sql = sql.lte('ig_followers', maxFollowers);
+      // if (minEr != null)       sql = sql.gte('a_emg_rate', minEr); // 你表裡若是 0~100 就直接用百分比數
+      // // kolType 若是你另一張對應標籤的表（如 kol_element），通常要先查 element → 取 kol_id 清單 → 再用 in() 過濾
+      //
+      // const { data, error } = await sql;
+      // if (error) return showMsg('查詢失敗：' + error.message);
+      // showResult({ filters: query, rows: data });
+    });
+
+    // 4) 清空
+    $("resetBtn").onclick = () => {
+      $("kolType").value = "";
+      $("minFollowers").value = "";
+      $("maxFollowers").value = "";
+      $("minEr").value = "";
+      $("limit").value = 20;
+      $("result").style.display = "none";
+      showMsg("");
+    };
   </script>
 </body>
 </html>
