@@ -1,62 +1,174 @@
-<script>
-const SUPABASE_URL = "https://brszmjgodlmhsqkbcvmd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyc3ptamdvZGxtaHNxa2Jjdm1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjQ5NDAsImV4cCI6MjA2OTkwMDk0MH0.aIU16WE7MZdbJtPOb5qbPpizaufXaOtTnjgxcTqE-ik";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>網紅查找</title>
+  <style>
+    :root {
+      --bg:#f6f7fb; --card:#fff; --text:#222; --muted:#666; --primary:#2b6cff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin:0; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+      "Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;
+      background:var(--bg); color:var(--text);
+      min-height:100vh; display:flex; flex-direction:column;
+    }
+    .topbar {
+      height:56px; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.06);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 16px; position:sticky; top:0; z-index:10;
+    }
+    .topbar .brand { font-weight:800; letter-spacing:.5px; }
+    .topbar .user { font-size:14px; color:var(--muted); margin-right:8px; }
+    .btn {
+      appearance:none; border:none; border-radius:10px; padding:10px 14px; cursor:pointer;
+      font-weight:700; background:#333; color:#fff;
+    }
+    .btn:hover { filter:brightness(.95); }
+    .btn.primary { background:var(--primary); }
+    .container { flex:1; display:grid; place-items:center; padding:28px 16px; }
+    .card {
+      width:min(720px, 92vw); background:var(--card); border-radius:18px;
+      padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+    h1 { margin:0 0 8px; font-size:24px; }
+    p.tip { margin:0 0 18px; color:var(--muted); }
+    form { display:grid; gap:14px; grid-template-columns:1fr 1fr; }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-weight:700; }
+    input, select {
+      padding:10px 12px; border:1px solid #ddd; border-radius:10px; font-size:16px; background:#fff;
+    }
+    .row { display:flex; gap:10px; }
+    .actions { margin-top:8px; display:flex; gap:10px; }
+    .msg { margin-top:10px; min-height:1.2em; color:#d11; }
+    .ok { color:#2a8f2a; }
+    .result {
+      margin-top:16px; background:#fafafa; border:1px dashed #ddd; border-radius:12px; padding:14px;
+    }
+    .kol-item { margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #eee; }
+    .kol-item:last-child { border-bottom:none; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">KOL Finder</div>
+    <div class="row" style="align-items:center;">
+      <span id="user" class="user"></span>
+      <button id="logout" class="btn">登出</button>
+    </div>
+  </header>
 
-// 表單送出 → 呼叫 Supabase RPC
-document.getElementById("searchForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const msg = document.getElementById("msg");
-  msg.textContent = "搜尋中...";
+  <main class="container">
+    <section class="card">
+      <h1>網紅查找</h1>
+      <p class="tip">輸入條件查找網紅（平台固定 IG）。</p>
 
-  const min_followers = Number(document.getElementById("minFollowers").value || 0);
-  const max_followers = Number(document.getElementById("maxFollowers").value || 999999999);
-  const min_emg_rate = Number(document.getElementById("minEr").value || 0) / 100; // %
-  const gender = ""; // 目前不輸入性別
+      <form id="searchForm">
+        <div class="field">
+          <label>平台</label>
+          <input type="text" value="IG" disabled />
+        </div>
 
-  // 1️⃣ 呼叫 RPC: refresh_kol_search_cache（預過濾名單）
-  const { data: cacheData, error: cacheErr } = await supabase.rpc("refresh_kol_search_cache", {
-    min_followers,
-    max_followers,
-    min_emg_rate,
-    p_gender: gender,
-  });
+        <div class="field">
+          <label>網紅類型</label>
+          <input id="kolType" type="text" placeholder="例：旅遊、美妝..." />
+        </div>
 
-  if (cacheErr) {
-    msg.textContent = "查詢失敗：" + cacheErr.message;
-    return;
-  }
+        <div class="field">
+          <label>粉絲數最少</label>
+          <input id="minFollowers" type="number" placeholder="0" />
+        </div>
 
-  // 2️⃣ 查詢 kol_ig_db 名單 (取前10個範例)
-  const { data, error } = await supabase
-    .from("kol_ig_db")
-    .select("ig_name, instagram, ig_followers")
-    .limit(10)
-    .order("ig_followers", { ascending: false });
+        <div class="field">
+          <label>粉絲數最多</label>
+          <input id="maxFollowers" type="number" placeholder="1000000" />
+        </div>
 
-  if (error) {
-    msg.textContent = "查詢錯誤：" + error.message;
-    return;
-  }
+        <div class="field">
+          <label>互動率（最低%）</label>
+          <input id="minEr" type="number" placeholder="2" />
+        </div>
 
-  if (!data || data.length === 0) {
-    msg.textContent = "查無符合條件的網紅。";
-    document.getElementById("result").style.display = "none";
-    return;
-  }
+        <div class="field">
+          <label>人數</label>
+          <input id="limit" type="number" value="10" />
+        </div>
 
-  msg.textContent = "";
-  const resultBox = document.getElementById("result");
-  resultBox.style.display = "block";
-  resultBox.innerHTML = data
-    .map(
-      (r, i) =>
-        `<div style="margin-bottom:6px;">
-          <strong>${i + 1}. ${r.ig_name}</strong> 
-          <a href="${r.instagram}" target="_blank">Instagram</a><br>
-          粉絲數：${r.ig_followers?.toLocaleString?.() ?? "未知"}
-        </div>`
-    )
-    .join("");
-});
-</script>
+        <div class="field full actions">
+          <button type="button" id="resetBtn" class="btn">清空</button>
+          <button type="submit" class="btn primary">查找</button>
+        </div>
+      </form>
+
+      <p id="msg" class="msg"></p>
+      <div id="result" class="result" style="display:none;"></div>
+    </section>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://brszmjgodlmhsqkbcvmd.supabase.co";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyc3ptamdvZGxtaHNxa2Jjdm1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjQ5NDAsImV4cCI6MjA2OTkwMDk0MH0.aIU16WE7MZdbJtPOb5qbPpizaufXaOtTnjgxcTqE-ik";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const $ = (id) => document.getElementById(id);
+    const showMsg = (t, ok=false) => { $("msg").textContent = t || ""; $("msg").className = "msg" + (ok?" ok":""); };
+
+    // 檢查登入狀態
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return (window.location.href = "index.html");
+      $("user").textContent = `已登入：${session.user.email}`;
+    })();
+
+    // 登出
+    $("logout").onclick = async () => { await supabase.auth.signOut(); window.location.href = "index.html"; };
+
+    // 查找
+    $("searchForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showMsg("搜尋中..."); $("result").style.display = "none";
+
+      const min_followers = Number($("minFollowers").value || 0);
+      const max_followers = Number($("maxFollowers").value || 999999999);
+      const min_emg_rate = Number($("minEr").value || 0);
+      const limit = Number($("limit").value || 10);
+
+      const { data, error } = await supabase
+        .from("kol_ig_db")
+        .select("ig_name, instagram, ig_followers")
+        .gte("ig_followers", min_followers)
+        .lte("ig_followers", max_followers)
+        .gte("a_emg_rate", min_emg_rate)
+        .limit(limit)
+        .order("ig_followers", { ascending: false });
+
+      if (error) return showMsg("查詢錯誤：" + error.message);
+      if (!data || data.length === 0) return showMsg("查無符合條件的網紅。");
+
+      const html = data.map(
+        (r,i)=>`
+          <div class="kol-item">
+            <strong>${i+1}. ${r.ig_name}</strong><br>
+            <a href="${r.instagram}" target="_blank">${r.instagram}</a><br>
+            粉絲數：${r.ig_followers?.toLocaleString?.() ?? "未知"}
+          </div>`
+      ).join("");
+      $("result").innerHTML = html;
+      $("result").style.display = "block";
+      showMsg(`找到 ${data.length} 位網紅`, true);
+    });
+
+    // 清空
+    $("resetBtn").onclick = () => {
+      ["kolType","minFollowers","maxFollowers","minEr"].forEach(id=>$(id).value="");
+      $("limit").value=10; $("result").style.display="none"; showMsg("");
+    };
+  </script>
+</body>
+</html>
