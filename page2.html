@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>會員專區</title>
+  <title>會員頁面</title>
   <style>
-    body { font-family:-apple-system, "Noto Sans TC", "Microsoft JhengHei", sans-serif; background:#fff3cd; margin:0; display:grid; place-items:center; min-height:100vh; }
+    body { font-family:"Microsoft JhengHei", sans-serif; background:#fff3cd; margin:0; display:grid; place-items:center; min-height:100vh; }
     .card { width:min(560px, 92vw); background:#fff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08); text-align:center; }
     button { padding:10px 16px; border:0; border-radius:10px; cursor:pointer; font-weight:700; background:#333; color:#fff; }
   </style>
@@ -19,30 +19,25 @@
   </main>
 
   <script>
-    // 和 index.html 保持一致
-    const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
-    const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+    const SUPABASE_URL = "https://brszmjgodlmhsqkbcvmd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyc3ptamdvZGxtaHNxa2Jjdm1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjQ5NDAsImV4cCI6MjA2OTkwMDk0MH0.aIU16WE7MZdbJtPOb5qbPpizaufXaOtTnjgxcTqE-ik";
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     (async () => {
-      // 1) 讀目前是否有登入中的 session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        // 沒登入 → 回首頁
         window.location.href = "index.html";
         return;
       }
 
-      // 2) 顯示登入者 Email
       document.getElementById("user").textContent = `已登入帳號：${session.user.email}`;
 
-      // 3) 登出
       document.getElementById("logout").onclick = async () => {
         await supabase.auth.signOut();
         window.location.href = "index.html";
       };
 
-      // 4) 監聽登入狀態變化（可選）
       supabase.auth.onAuthStateChange(async (event, sess) => {
         if (!sess) window.location.href = "index.html";
       });
